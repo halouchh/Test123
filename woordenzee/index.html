@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Woordenzee Grand Adventure Crew</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#0b3a6b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Woordenzee">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+/* Layout: zeekaart als raster van eilandtegels; rustige witte oefenkaart tijdens spelling. Eén vaste, felle gamewereld (geen donker thema). */
+:root{
+  --sea:#0b3a6b; --sea2:#1565a8; --foam:#bfe9ff;
+  --ink:#16203f; --paper:#fffaf0; --card:#ffffff;
+  --sun:#ffc62e; --coral:#ff5d4d; --leaf:#22b573; --sky:#39b8ff; --plum:#7a4be0;
+  --soft:#e8eefb; --mute:#5a6788; --warm:#fff1c9;
+  --font:ui-rounded,"SF Pro Rounded","Arial Rounded MT Bold","Nunito","Trebuchet MS","Segoe UI",system-ui,sans-serif;
+  --r:18px; --line:3px solid var(--ink); --drop:0 5px 0 var(--ink);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--sea);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.4;overflow-x:hidden;
+  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;
+  background-image:radial-gradient(circle at 20% 10%,var(--sea2) 0,transparent 55%),radial-gradient(circle at 90% 80%,#0f4f8f 0,transparent 50%);background-attachment:fixed}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:4px solid var(--sun);outline-offset:2px}
+#app{max-width:1180px;margin:0 auto;padding-block:12px 110px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:max(12px,env(safe-area-inset-top,0px))}
+h1,h2,h3{margin:0;line-height:1.15;text-wrap:balance}
+h1{font-size:1.5rem} h2{font-size:1.3rem} h3{font-size:1.05rem}
+p{margin:0}
+.col{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.center{text-align:center;align-items:center}
+.mut{color:var(--mute);font-size:.92rem}
+.light{color:#fff}
+.btn{border:var(--line);border-radius:16px;background:var(--card);padding:12px 18px;font-weight:800;min-height:52px;box-shadow:var(--drop);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;color:var(--ink)}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.btn.sun{background:var(--sun)} .btn.leaf{background:var(--leaf);color:#fff} .btn.sky{background:var(--sky)} .btn.coral{background:var(--coral);color:#fff}
+.btn.big{font-size:1.25rem;min-height:64px;padding:14px 26px}
+.btn.sm{min-height:44px;padding:8px 12px;font-size:.92rem;box-shadow:0 3px 0 var(--ink);border-radius:12px}
+.btn.ghost{background:transparent;color:#fff;border-color:#fff;box-shadow:none}
+.btn[disabled]{opacity:.5;cursor:default}
+.card{background:var(--card);border:var(--line);border-radius:var(--r);box-shadow:var(--drop);padding:16px}
+.card.paper{background:var(--paper)}
+.pill{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);border-radius:999px;padding:3px 10px;font-weight:800;font-size:.85rem;background:#fff;white-space:nowrap}
+.pill.ok{background:#c9f5dd} .pill.help{background:#ffe2a8} .pill.new{background:var(--soft)}
+input[type=text],input[type=search],input[type=password],textarea,select{border:var(--line);border-radius:14px;padding:12px 14px;background:#fff;width:100%;font-size:1.05rem;min-height:52px}
+textarea{min-height:90px;resize:vertical}
+label{font-weight:800;font-size:.92rem;display:flex;flex-direction:column;gap:5px}
+
+/* kop + navigatie */
+.top{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.logo{color:#fff;font-weight:900;font-size:1.35rem;letter-spacing:.5px;text-shadow:0 3px 0 var(--ink);display:flex;align-items:center;gap:8px}
+.logo small{display:block;font-size:.62rem;letter-spacing:2.5px;color:var(--sun);text-shadow:0 2px 0 var(--ink)}
+.nav{display:flex;gap:8px}
+.nav button{border:var(--line);background:#fff;border-radius:14px;padding:8px 12px;font-weight:800;min-height:50px;display:flex;flex-direction:column;align-items:center;font-size:.78rem;line-height:1.1;min-width:70px;box-shadow:0 3px 0 var(--ink)}
+.nav button span{font-size:1.35rem}
+.nav button.on{background:var(--sun)}
+@media (max-width:759px){
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--ink);justify-content:space-around;gap:6px;
+    padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px))}
+  .nav button{flex:1;min-width:0;box-shadow:none}
+}
+@media (min-width:760px){ #app{padding-bottom:40px} .top .nav{margin-left:auto} }
+
+/* kaart */
+.world{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:980px){ .world{grid-template-columns:minmax(0,1fr) 320px;align-items:start} }
+.isles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (min-width:620px){ .isles{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px} }
+.isle{border:var(--line);border-radius:22px;padding:8px 8px 12px;background:linear-gradient(#8fd8ff,#39b8ff);box-shadow:var(--drop);text-align:center;position:relative;display:flex;flex-direction:column;gap:4px;align-items:center;min-width:0}
+.isle svg{width:100%;height:auto;display:block}
+.isle b{font-size:1.02rem;line-height:1.1}
+.isle .mut{font-size:.78rem;color:var(--ink)}
+.isle.locked{background:linear-gradient(#b9c3d6,#8894ad)}
+.isle.locked svg{filter:grayscale(1) brightness(.8)}
+.isle .lock{position:absolute;top:26%;left:50%;transform:translate(-50%,-50%);font-size:2.6rem}
+.isle .here{position:absolute;top:6px;right:8px;font-size:1.7rem;animation:bob 2.4s ease-in-out infinite}
+.isle .num{position:absolute;top:8px;left:8px;background:var(--ink);color:#fff;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;font-weight:900;font-size:.9rem}
+@keyframes bob{50%{transform:translateY(-5px) rotate(-4deg)}}
+.bar{height:14px;border:2px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden;width:100%}
+.bar i{display:block;height:100%;background:var(--leaf)}
+.cap{display:flex;gap:12px;align-items:center}
+.cap svg{width:76px;height:76px;flex:none}
+.stat{display:flex;gap:8px;flex-wrap:wrap}
+
+/* missies */
+.mis{display:flex;align-items:center;gap:12px;width:100%;text-align:left}
+.mis .ic{width:52px;height:52px;border-radius:50%;border:var(--line);display:grid;place-items:center;font-size:1.5rem;background:var(--sun);flex:none}
+.banner{border:var(--line);border-radius:22px;padding:14px;color:#fff;box-shadow:var(--drop);display:flex;gap:14px;align-items:center}
+.banner svg{width:130px;flex:none}
+.banner h2{text-shadow:0 2px 0 var(--ink)}
+
+/* oefenen: rustig */
+.play{max-width:560px;margin:0 auto}
+.dots{display:flex;gap:6px;flex-wrap:wrap}
+.dots i{width:16px;height:16px;border-radius:50%;border:2px solid #fff;background:transparent}
+.dots i.d{background:var(--sun)} .dots i.c{background:#fff}
+.listen{width:120px;height:120px;border-radius:50%;font-size:3rem;background:var(--sky);border:var(--line);box-shadow:var(--drop)}
+.listen:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.answer{font-size:1.6rem!important;text-align:center;font-weight:800;letter-spacing:1px;min-height:64px!important}
+.slots{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+.slots i{font-style:normal;width:34px;height:42px;border:2px solid var(--ink);border-radius:9px;display:grid;place-items:center;font-weight:900;font-size:1.3rem;background:#fff}
+.slots i.g{background:#c9f5dd} .slots i.sp{border-color:transparent;background:transparent;width:14px}
+.hint{background:var(--warm);border:2px dashed var(--ink);border-radius:14px;padding:12px}
+.fullword{font-size:2rem;font-weight:900;letter-spacing:2px;text-align:center;word-break:break-word}
+.good{background:#dff9ea;border:var(--line);border-radius:14px;padding:14px}
+.pop{animation:pop .45s ease-out}
+@keyframes pop{0%{transform:scale(.8);opacity:.3}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* bibliotheek, crew, ouders */
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.wcard{padding:12px;display:flex;flex-direction:column;gap:6px}
+.wcard .w{font-size:1.3rem;font-weight:900;word-break:break-word}
+.crewg{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.crewc{text-align:center;padding:10px}
+.crewc svg{width:96px;height:96px}
+.crewc.off svg{filter:brightness(0) opacity(.25)}
+.treg{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+.tre{border:var(--line);border-radius:14px;background:#fff;text-align:center;padding:8px 4px;font-size:.74rem;font-weight:800;line-height:1.15}
+.tre span{display:block;font-size:2rem}
+.tre.off{background:var(--soft);color:var(--mute)} .tre.off span{filter:grayscale(1) opacity(.3)}
+.parent{background:#f3f5fa;border-radius:var(--r);border:var(--line);padding:16px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{border:2px solid var(--ink);background:#fff;border-radius:10px;padding:8px 12px;font-weight:800;min-height:44px}
+.tabs button.on{background:var(--ink);color:#fff}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid #cfd6e6;vertical-align:middle}
+td.n{font-variant-numeric:tabular-nums;text-align:right} th.n{text-align:right}
+.note{background:#fff7d6;border:2px solid var(--ink);border-radius:12px;padding:10px 12px;font-size:.92rem}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;font-weight:800;z-index:50;max-width:90vw;text-align:center}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+'use strict';
+/* ================= GEGEVENS ================= */
+const ISL=[
+ {n:'Palmbaai',t:'sch · schr · ng · nk',c1:'#ffc62e',c2:'#22b573',bg:'#12a37a',crew:{n:'Mira Zeewind',r:'Stuurvrouw',skin:'#f2b98a',hair:'#3a2a1a',shirt:'#39b8ff',hat:'band',hc:'#ff5d4d'}},
+ {n:'Vuurpiek',t:'korte en lange klanken',c1:'#ff5d4d',c2:'#5b3a3a',bg:'#c43d2b',crew:{n:'Brok Lavapan',r:'Scheepskok',skin:'#c98a5e',hair:'#1b1b1b',shirt:'#fff',hat:'chef',hc:'#fff'}},
+ {n:'IJskaap',t:'ei · ij · au · ou',c1:'#bfe9ff',c2:'#ffffff',bg:'#2f8fd0',crew:{n:'Fenna Vorst',r:'Uitvinder',skin:'#ffd9bf',hair:'#f2f2ff',shirt:'#7a4be0',hat:'muts',hc:'#39b8ff'}},
+ {n:'Fluisterwoud',t:'-lijk · -ig · ge- · cht',c1:'#22b573',c2:'#0f6b3f',bg:'#0f7a4a',crew:{n:'Tak Slinger',r:'Uitkijk',skin:'#8a5a3c',hair:'#22b573',shirt:'#ffc62e',hat:'blad',hc:'#22b573'}},
+ {n:'Zandzee',t:'woorden op -d en -t',c1:'#f5c97a',c2:'#d98a3d',bg:'#c9772e',crew:{n:'Dunya Duin',r:'Schatzoeker',skin:'#e0a877',hair:'#5b2a12',shirt:'#ff5d4d',hat:'tulb',hc:'#fff1c9'}},
+ {n:'Stormrif',t:'lastige leenwoorden',c1:'#7a4be0',c2:'#3a3f66',bg:'#4b3aa8',crew:{n:'Donder Bulderbek',r:'Kanonnier',skin:'#f2b98a',hair:'#ff8a1f',shirt:'#3a3f66',hat:'kap',hc:'#16203f'}}
+];
+const CAPTAIN={skin:'#f2b98a',hair:'#5b2a12',shirt:'#ff5d4d',hat:'kap',hc:'#16203f'};
+const TRE=[['🧭','Gouden Kompas'],['🐚','Zingende Schelp'],['🔱','Harpoen Golfbreker'],['🗝️','Sleutel van Vuurpiek'],['🌋','Lavasteen'],['🎯','Katapult Kokosknal'],
+ ['❄️','Eeuwig IJskristal'],['🔭','Verrekijker Vérzicht'],['💎','Blauwe Diamant'],['🦜','Gouden Veer'],['🍃','Fluisterblad'],['🏹','Lianenboog'],
+ ['🏺','Zandkruik'],['👑','Kroon van de Duinkoning'],['💣','Kanon Bulderbek'],['⚡','Gevangen Bliksem'],['⚓','Zilveren Anker'],['🏆','Beker van de Woordenzee'],
+ ['🗺️','Geheime Kaart'],['💍','Ring van de Zeemeermin'],['🔔','Scheepsbel'],['🥥','Reuzenkokosnoot'],['🧪','Flesje Zeemist'],['🎺','Mistfluit']];
+const RANKS=[[0,'Matroos'],[8,'Stuurman'],[20,'Schatzoeker'],[40,'Zeeheld'],[60,'Kapitein der Golven']];
+const WORDS=[
+[['schat','Iets heel waardevols, zoals goud of juwelen.','De piraat begroef zijn schat onder een palmboom.'],
+ ['schip','Een grote boot.','Het schip vaart over de zee.'],
+ ['schelp','Het harde huisje van een zeedier.','Ik vond een mooie schelp op het strand.'],
+ ['schroef','Een metalen pinnetje dat je vastdraait.','Papa draait de schroef in de plank.'],
+ ['schrift','Een boekje om in te schrijven.','Ik schrijf de woorden in mijn schrift.'],
+ ['schouder','Het deel van je lichaam tussen je nek en je arm.','De papegaai zit op mijn schouder.'],
+ ['slang','Een lang dier zonder poten.','De slang glijdt door het gras.'],
+ ['koning','De baas van een land.','De koning draagt een gouden kroon.'],
+ ['bank','Een lange stoel voor meer mensen.','We zitten samen op de bank.'],
+ ['drinken','Water of sap in je mond nemen en doorslikken.','Na het rennen wil ik water drinken.'],
+ ['plank','Een plat, lang stuk hout.','De timmerman zaagt de plank door.'],
+ ['anker','Een zwaar ijzeren ding dat een boot op zijn plaats houdt.','De kapitein gooit het anker uit.']],
+[['bomen','Meer dan één boom.','In het bos staan hoge bomen.'],
+ ['vuren','Meer dan één vuur.','Op het strand branden twee vuren.'],
+ ['stenen','Harde stukken rots.','Wij gooien stenen in het water.'],
+ ['lopen','Met je benen vooruit gaan.','Wij lopen samen naar school.'],
+ ['water','Dat drink je en daar zwem je in.','Het water in de zee is zout.'],
+ ['vlammen','De hete, gele tongen van een vuur.','De vlammen dansen in het kampvuur.'],
+ ['bakken','Eten klaarmaken in een pan of oven.','Wij bakken vandaag pannenkoeken.'],
+ ['rennen','Heel snel lopen.','De kinderen rennen over het plein.'],
+ ['zitten','Met je billen op een stoel of op de grond rusten.','Wij zitten in een kring.'],
+ ['bussen','Meer dan één bus.','Voor de school staan drie bussen.'],
+ ['koffer','Een tas met een handvat voor op reis.','Mijn koffer zit vol met kleren.'],
+ ['ladder','Een trap die je ergens tegenaan zet.','De brandweerman klimt op de ladder.']],
+[['ijs','Bevroren water. Ook iets lekkers dat je likt.','Op de sloot ligt dik ijs.'],
+ ['trein','Een lang voertuig dat over rails rijdt.','De trein stopt bij het perron.'],
+ ['klein','Niet groot.','Een muis is een klein dier.'],
+ ['reis','Een tocht naar een plek ver weg.','Wij maken een lange reis met de boot.'],
+ ['pijl','Een dunne stok met een punt die je met een boog schiet.','De pijl vliegt recht in de roos.'],
+ ['geheim','Iets wat je aan niemand mag vertellen.','Ik vertel jou een geheim.'],
+ ['blauw','De kleur van de lucht en de zee.','De lucht is vandaag helemaal blauw.'],
+ ['koud','Niet warm.','In de winter is het buiten koud.'],
+ ['goud','Een geel, glanzend metaal dat veel geld waard is.','De kist zit vol met goud.'],
+ ['pauw','Een grote vogel met een prachtige staart.','De pauw laat zijn veren zien.'],
+ ['vrouw','Een volwassen meisje.','De vrouw leest een boek.'],
+ ['kijker','Een buis met glaasjes waarmee je ver kunt zien.','Door de kijker zie ik een eiland.']],
+[['gevaarlijk','Als er iets ergs kan gebeuren.','Het is gevaarlijk om op dun ijs te lopen.'],
+ ['vrolijk','Blij en opgewekt.','Mijn zusje is vandaag heel vrolijk.'],
+ ['moeilijk','Niet makkelijk.','Deze som is best moeilijk.'],
+ ['eerlijk','Als je de waarheid zegt en niet vals speelt.','Wij verdelen de koekjes eerlijk.'],
+ ['aardig','Lief en vriendelijk.','De buurman is een aardige man, hij is altijd aardig.'],
+ ['gelukkig','Heel blij en tevreden.','Ik ben gelukkig met mijn nieuwe fiets.'],
+ ['verhaal','Iets wat je vertelt of leest over wat er gebeurt.','Opa vertelt een spannend verhaal.'],
+ ['begin','Het eerste stukje van iets.','Het begin van de film is grappig.'],
+ ['gezicht','De voorkant van je hoofd.','Zij heeft verf op haar gezicht.'],
+ ['nacht','De tijd dat het donker is en je slaapt.','In de nacht schijnt de maan.'],
+ ['lucht','Wat je inademt. Ook de hemel boven je.','Er vliegt een vogel hoog in de lucht.'],
+ ['kleur','Rood, geel en groen zijn er voorbeelden van.','Mijn lievelingskleur is groen, een mooie kleur.']],
+[['hond','Een huisdier dat blaft.','De hond kwispelt met zijn staart.'],
+ ['paard','Een groot dier waar je op kunt rijden.','Het paard draaft door de wei.'],
+ ['zand','Heel kleine korreltjes op het strand of in de woestijn.','Wij bouwen een kasteel van zand.'],
+ ['tand','Een hard, wit ding in je mond waarmee je bijt.','Mijn tand zit los.'],
+ ['strand','De strook zand langs de zee.','Wij zoeken schelpen op het strand.'],
+ ['feest','Een vrolijke dag met vrienden, taart en muziek.','Zaterdag geef ik een feest.'],
+ ['kist','Een grote houten doos met een deksel.','De schat ligt in een oude kist.'],
+ ['woestijn','Een heel droog gebied met veel zand.','In de woestijn regent het bijna nooit.'],
+ ['avond','Het einde van de dag, als het donker wordt.','In de avond lees ik in bed.'],
+ ['duizend','Het getal 1000.','In de kist liggen duizend munten.'],
+ ['hoofd','Het bovenste deel van je lichaam.','Ik draag een pet op mijn hoofd.'],
+ ['markt','Een plein met kraampjes waar je dingen koopt.','Op de markt kopen wij fruit.']],
+[['politie','Mensen die zorgen dat iedereen zich aan de regels houdt.','De politie helpt het verdwaalde kind.'],
+ ['vakantie','Vrije dagen zonder school.','In de vakantie gaan wij kamperen.'],
+ ['station','De plek waar treinen stoppen.','Wij wachten op het station.'],
+ ['cadeau','Iets wat je krijgt of geeft, zomaar of op een feest.','Ik kreeg een mooi cadeau van oma.'],
+ ['thee','Een warm drankje van heet water en blaadjes.','Mama drinkt een kopje thee.'],
+ ['circus','Een grote tent met clowns en acrobaten.','In het circus treedt een clown op.'],
+ ['taxi','Een auto met een chauffeur die je ergens heen brengt.','Wij nemen een taxi naar het hotel.'],
+ ['bibliotheek','Een gebouw waar je boeken kunt lenen.','Ik leen een stripboek in de bibliotheek.'],
+ ['chocolade','Bruin snoep gemaakt van cacao.','Ik lust graag een stukje chocolade.'],
+ ['machine','Een apparaat dat werk voor je doet.','De machine maakt veel lawaai.'],
+ ['fantastisch','Heel erg goed of mooi.','Het vuurwerk was fantastisch.'],
+ ['kapitein','De baas op een schip.','De kapitein staat aan het roer.']]
+];
+/* ================= OPSLAG ================= */
+const KEY='woordenzee.v1';
+let S=null, AUD={}, db=null, storageOk=true;
+function fresh(){
+  const words=[];let n=0;
+  WORDS.forEach((list,isl)=>list.forEach(x=>words.push({id:'b'+(n++),w:x[0],m:x[1],z:x[2],isl})));
+  return {v:1,name:'',coins:0,words,prog:{},done:{},tre:[],crew:[],next:1000,
+    set:{slow:false,voice:'',peek:false,openAll:false,sfx:true,pin:''}};
+}
+function load(){
+  try{const t=localStorage.getItem(KEY);if(t){const o=JSON.parse(t);if(o&&Array.isArray(o.words)){S=Object.assign(fresh(),o);S.set=Object.assign(fresh().set,o.set||{});return}}}
+  catch(e){storageOk=false}
+  S=fresh();
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));storageOk=true}catch(e){storageOk=false}}
+function idbOpen(){return new Promise(res=>{try{const r=indexedDB.open('woordenzee',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('audio');
+  r.onsuccess=()=>{db=r.result;try{const q=db.transaction('audio').objectStore('audio').openCursor();
+    q.onsuccess=()=>{const c=q.result;if(c){AUD[c.key]=c.value;c.continue()}else res(true)};q.onerror=()=>res(false)}catch(e){res(false)}};
+  r.onerror=()=>res(false)}catch(e){res(false)}})}
+function audSet(id,data){if(data)AUD[id]=data;else delete AUD[id];
+  if(!db)return;try{const st=db.transaction('audio','readwrite').objectStore('audio');data?st.put(data,id):st.delete(id)}catch(e){}}
+/* ================= HULPJES ================= */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s||'').normalize('NFC').trim().replace(/\s+/g,' ').toLowerCase().replace(/[’`´]/g,"'");
+const P=id=>S.prog[id]||(S.prog[id]={st:'new',tries:0,wrong:0,clean:0,zin:''});
+const st=id=>(S.prog[id]||{}).st||'new';
+const wordById=id=>S.words.find(w=>w.id===id);
+const islWords=i=>S.words.filter(w=>w.isl===i);
+function chunks(i){const a=islWords(i),out=[];for(let k=0;k<a.length;k+=4)out.push(a.slice(k,k+4));
+  if(out.length>1&&out[out.length-1].length<2){const l=out.pop();out[out.length-1].push(...l)}return out}
+const doneOf=i=>S.done[i]||[];
+const complete=i=>chunks(i).every((_,k)=>doneOf(i).includes(k));
+const unlocked=i=>i===0||S.set.openAll||complete(i-1);
+const mastered=()=>S.words.filter(w=>st(w.id)==='ok').length;
+const review=()=>S.words.filter(w=>st(w.id)==='help');
+function rank(){const m=mastered();let r=RANKS[0][1];RANKS.forEach(x=>{if(m>=x[0])r=x[1]});
+  if(S.words.length&&m===S.words.length)r='Legende van de Woordenzee';return r}
+function currentIsle(){let c=0;for(let i=0;i<6;i++)if(unlocked(i))c=i;for(let i=0;i<6;i++)if(unlocked(i)&&!complete(i))return i;return c}
+let toastT;function toast(t){let el=$('.toast');if(!el){el=document.createElement('div');el.className='toast';el.setAttribute('role','status');document.body.appendChild(el)}
+  el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2600)}
+/* ================= GELUID ================= */
+let voices=[];
+function loadVoices(){try{voices=speechSynthesis.getVoices()||[]}catch(e){voices=[]}}
+if('speechSynthesis' in window){loadVoices();try{speechSynthesis.addEventListener('voiceschanged',()=>{loadVoices();if(V.s==='parent')draw()})}catch(e){}}
+const nlVoices=()=>voices.filter(v=>/^nl/i.test(v.lang));
+function pickVoice(){const l=nlVoices();return l.find(v=>v.voiceURI===S.set.voice)||l.find(v=>v.localService)||l[0]||null}
+/* 'ja' = stem aanwezig, 'nee' = zeker geen Nederlandse stem, 'misschien' = stemlijst (nog) leeg */
+function ttsState(){if(!('speechSynthesis' in window))return 'nee';if(nlVoices().length)return 'ja';return voices.length?'nee':'misschien'}
+function say(text,slow){if(!('speechSynthesis' in window))return false;
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text),v=pickVoice();
+    u.lang=v?v.lang:'nl-NL';if(v)u.voice=v;u.rate=slow?0.55:0.85;speechSynthesis.speak(u);return true}catch(e){return false}}
+let player=null;
+function playWord(w,slow){
+  if(AUD[w.id]){try{if(player)player.pause();player=new Audio(AUD[w.id]);player.playbackRate=slow?0.75:1;
+    player.play().catch(()=>say(w.w,slow));return}catch(e){}}
+  say(w.w,slow);
+}
+const canHear=w=>!!AUD[w.id]||ttsState()!=='nee';
+let actx;
+function chime(){if(!S.set.sfx)return;try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+  [660,880,1175].forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type='triangle';o.frequency.value=f;
+    const t=actx.currentTime+i*0.09;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.18,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+0.25);
+    o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+0.27)})}catch(e){}}
+/* ================= TEKENINGEN ================= */
+const O='stroke="#16203f" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"';
+function isleArt(i){
+  const I=ISL[i];let f='';
+  const base=`<ellipse cx="100" cy="118" rx="92" ry="16" fill="#1565a8" opacity=".55"/><path d="M14 112 Q100 ${i===4?70:84} 186 112 Q100 128 14 112Z" fill="${i===2?'#eaf8ff':'#f5d38a'}" ${O}/>`;
+  if(i===0)f=`<path d="M70 104 Q74 70 66 44" fill="none" stroke="#8a5a3c" stroke-width="8" stroke-linecap="round"/><path d="M66 44 Q40 30 26 48 Q46 40 66 44 Q52 18 30 20 Q54 22 66 44 Q78 16 104 26 Q80 26 66 44 Q92 38 104 56 Q84 44 66 44Z" fill="#22b573" ${O}/>
+   <path d="M128 106 Q130 82 124 64" fill="none" stroke="#8a5a3c" stroke-width="7" stroke-linecap="round"/><path d="M124 64 Q104 54 94 68 Q110 62 124 64 Q118 44 100 44 Q118 48 124 64 Q134 44 154 52 Q136 52 124 64 Q144 62 152 76 Q138 66 124 64Z" fill="#12a37a" ${O}/><circle cx="160" cy="34" r="16" fill="#ffc62e" ${O}/>`;
+  if(i===1)f=`<path d="M40 108 L84 36 L116 36 L160 108Z" fill="#5b3a3a" ${O}/><path d="M84 36 L92 62 L100 44 L108 66 L116 36Z" fill="#ff5d4d" ${O}/><path d="M60 108 L84 70 L100 108Z" fill="#3d2626"/><circle cx="90" cy="20" r="9" fill="#ffc62e" ${O}/><circle cx="112" cy="12" r="6" fill="#ff8a1f" ${O}/><circle cx="74" cy="10" r="5" fill="#ff5d4d" ${O}/>`;
+  if(i===2)f=`<path d="M34 110 L70 40 L96 110Z" fill="#bfe9ff" ${O}/><path d="M80 110 L118 24 L160 110Z" fill="#fff" ${O}/><path d="M118 24 L104 58 L118 50 L130 60Z" fill="#bfe9ff"/><path d="M118 24 L160 110 L130 110Z" fill="#8fd0f5" opacity=".7"/><path d="M40 24 l6 6 m0 -6 l-6 6 M166 50 l6 6 m0 -6 l-6 6" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`;
+  if(i===3)f=`<rect x="56" y="76" width="9" height="30" fill="#8a5a3c" ${O}/><circle cx="60" cy="62" r="26" fill="#22b573" ${O}/><rect x="126" y="80" width="9" height="28" fill="#8a5a3c" ${O}/><circle cx="130" cy="66" r="24" fill="#12a37a" ${O}/><rect x="92" y="64" width="11" height="44" fill="#8a5a3c" ${O}/><circle cx="97" cy="46" r="32" fill="#0f7a4a" ${O}/><path d="M80 40 q10 -14 22 -2 M108 56 q8 -8 14 2" fill="none" stroke="#22b573" stroke-width="4" stroke-linecap="round"/><circle cx="86" cy="58" r="4" fill="#ff5d4d"/><circle cx="112" cy="36" r="4" fill="#ffc62e"/>`;
+  if(i===4)f=`<path d="M92 82 L124 30 L156 86Z" fill="#d98a3d" ${O}/><path d="M124 30 L156 86 L132 84Z" fill="#b56a25"/><path d="M52 92 v-34 m0 16 h-12 v-12 m12 22 h12 v-14" fill="none" stroke="#16203f" stroke-width="13" stroke-linecap="round"/><path d="M52 92 v-34 m0 16 h-12 v-12 m12 22 h12 v-14" fill="none" stroke="#22b573" stroke-width="7" stroke-linecap="round"/><circle cx="40" cy="26" r="15" fill="#ffc62e" ${O}/>`;
+  if(i===5)f=`<path d="M36 110 L58 60 L78 82 L98 46 L122 84 L140 64 L164 110Z" fill="#3a3f66" ${O}/><path d="M98 46 L122 84 L104 82Z" fill="#262a4d"/><path d="M44 30 q-16 0 -14 -14 q2 -12 16 -8 q6 -14 24 -6 q16 -8 24 6 q16 0 14 14 q-2 10 -14 8Z" fill="#8a8fb8" ${O}/><path d="M72 30 L60 54 H72 L62 76 L90 46 H76 L86 30Z" fill="#ffc62e" ${O}/>`;
+  return `<svg viewBox="0 0 200 136" aria-hidden="true">${base}${f}<path d="M4 124 q8 -6 16 0 t16 0 M150 128 q8 -6 16 0 t16 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/></svg>`;
+}
+function crewArt(c){
+  let hat='';
+  if(c.hat==='band')hat=`<path d="M22 40 Q50 22 78 40 L78 46 Q50 34 22 46Z" fill="${c.hc}" ${O}/><path d="M78 42 l12 6 l-10 4Z" fill="${c.hc}" ${O}/>`;
+  if(c.hat==='chef')hat=`<path d="M28 38 Q14 18 34 14 Q42 0 56 10 Q76 4 74 22 Q84 30 72 38Z" fill="${c.hc}" ${O}/>`;
+  if(c.hat==='muts')hat=`<path d="M22 44 Q24 12 50 12 Q76 12 78 44Z" fill="${c.hc}" ${O}/><circle cx="50" cy="10" r="7" fill="#fff" ${O}/>`;
+  if(c.hat==='blad')hat=`<path d="M50 30 Q30 4 12 18 Q30 22 50 30 Q62 0 86 10 Q70 20 50 30Z" fill="${c.hc}" ${O}/>`;
+  if(c.hat==='tulb')hat=`<path d="M20 44 Q18 14 50 14 Q82 14 80 44 Q50 30 20 44Z" fill="${c.hc}" ${O}/><circle cx="50" cy="26" r="5" fill="#ff5d4d" ${O}/>`;
+  if(c.hat==='kap')hat=`<path d="M10 44 Q50 -6 90 44 Q50 30 10 44Z" fill="${c.hc}" ${O}/><path d="M42 26 l8 -8 l8 8 l-8 8Z" fill="#ffc62e" stroke="#16203f" stroke-width="2"/>`;
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M22 100 Q22 74 50 74 Q78 74 78 100Z" fill="${c.shirt}" ${O}/><path d="M50 74 Q78 74 78 100 L60 100Z" fill="#16203f" opacity=".18"/>
+  <circle cx="50" cy="50" r="28" fill="${c.hair}" ${O}/><circle cx="50" cy="54" r="24" fill="${c.skin}" ${O}/><path d="M50 30 A24 24 0 0 1 50 78Z" fill="#16203f" opacity=".12"/>
+  <circle cx="41" cy="52" r="4" fill="#16203f"/><circle cx="59" cy="52" r="4" fill="#16203f"/><circle cx="42.5" cy="50.5" r="1.4" fill="#fff"/><circle cx="60.5" cy="50.5" r="1.4" fill="#fff"/>
+  <path d="M40 63 Q50 72 60 63" fill="none" stroke="#16203f" stroke-width="3.5" stroke-linecap="round"/>${hat}</svg>`;
+}
+/* ================= SCHERMEN ================= */
+let V={s:'map'};   // huidig scherm + parameters
+let G=null;        // lopende oefening
+function go(s,extra){V=Object.assign({s},extra||{});draw();window.scrollTo(0,0)}
+function header(){
+  const tabs=[['map','🗺️','Kaart'],['lib','💎','Schatten'],['crew','🏴','Crew'],['gate','🔒','Ouders']];
+  const cur=V.s==='isle'?'map':(V.s==='parent'?'gate':V.s);
+  return `<div class="top"><div class="logo">⚓ <div>WOORDENZEE<small>GRAND ADVENTURE CREW</small></div></div>
+  <nav class="nav" aria-label="Menu">${tabs.map(t=>`<button data-a="go" data-v="${t[0]}" class="${cur===t[0]?'on':''}"><span aria-hidden="true">${t[1]}</span>${t[2]}</button>`).join('')}</nav></div>`;
+}
+const backBtn=(to,label)=>`<button class="btn sm" data-a="go" data-v="${to}">⬅ ${label||'Terug'}</button>`;
+function draw(){
+  const app=$('#app');let h='';
+  if(!S.name){app.innerHTML=vStart();return}
+  if(V.s==='play')h=vPlay();else if(V.s==='end')h=vEnd();
+  else h=header()+({map:vMap,isle:vIsle,lib:vLib,crew:vCrew,gate:vGate,parent:vParent}[V.s]||vMap)();
+  app.innerHTML=h;
+  if(V.s==='play'){const inp=$('#answer');if(inp&&!inp.disabled&&G.focus){inp.focus({preventScroll:false})}}
+}
+function vStart(){
+  return `<div class="col center" style="max-width:520px;margin:6vh auto 0">
+  <div class="logo" style="font-size:2rem;justify-content:center">⚓ <div>WOORDENZEE<small>GRAND ADVENTURE CREW</small></div></div>
+  <div style="width:150px">${crewArt(CAPTAIN)}</div>
+  <div class="card col" style="width:100%"><h2>Ahoy, kapitein!</h2><p>Zes eilanden wachten op jou. Schrijf woorden goed en vind schatten.</p>
+  <label>Hoe heet jij?<input type="text" id="capname" maxlength="20" autocomplete="off" placeholder="Jouw naam"></label>
+  <button class="btn sun big" data-a="start">Start het avontuur ⛵</button></div></div>`;
+}
+function vMap(){
+  const cur=currentIsle(),rev=review(),tot=S.words.length,m=mastered();
+  const isles=ISL.map((I,i)=>{const u=unlocked(i),ch=chunks(i),d=ch.filter((_,k)=>doneOf(i).includes(k)).length,iw=islWords(i),ok=iw.filter(w=>st(w.id)==='ok').length;
+    return `<button class="isle ${u?'':'locked'}" data-a="isle" data-v="${i}" aria-label="${esc(I.n)}${u?'':' (nog op slot)'}">
+    <span class="num">${i+1}</span>${u&&i===cur?'<span class="here" aria-hidden="true">⛵</span>':''}${isleArt(i)}${u?'':'<span class="lock" aria-hidden="true">🔒</span>'}
+    <b>${esc(I.n)}</b><span class="mut">${u?`${complete(i)&&ch.length?'✅ ':''}Missies ${d}/${ch.length} · ⭐ ${ok}/${iw.length}`:'Maak eerst eiland '+i+' af'}</span></button>`}).join('');
+  const side=`<div class="col">
+   <div class="card col"><div class="cap">${crewArt(CAPTAIN)}<div class="grow"><h2>Kapitein ${esc(S.name)}</h2><p class="mut">Rang: <b>${rank()}</b></p></div></div>
+    <div class="stat"><span class="pill">🪙 ${S.coins} munten</span><span class="pill ok">⭐ ${m}/${tot} woorden</span><span class="pill">💎 ${S.tre.length} schatten</span></div>
+    <div class="bar" aria-label="Voortgang"><i style="width:${tot?Math.round(m/tot*100):0}%"></i></div></div>
+   ${rev.length?`<div class="card paper col"><h3>🔁 Herhaal-missie</h3><p class="mut">${rev.length} ${rev.length===1?'woord wil':'woorden willen'} nog een keer oefenen.</p><button class="btn sun" data-a="review">Start herhalen</button></div>`:''}
+   <div class="card col"><h3>🏴 Jouw crew</h3><div class="row">${S.crew.length?S.crew.map(i=>`<div style="width:54px" title="${esc(ISL[i].crew.n)}">${crewArt(ISL[i].crew)}</div>`).join(''):'<p class="mut">Maak een eiland af. Dan komt er iemand bij je crew!</p>'}</div></div>
+  </div>`;
+  return `${storageOk?'':'<p class="note" style="margin-bottom:12px">Let op: dit toestel bewaart nu niets. Vraag een ouder om hulp (privévenster of opslag vol?).</p>'}
+  <div class="world"><div class="col"><h1 class="light">De Woordenzee</h1><div class="isles">${isles}</div></div>${side}</div>`;
+}
+function vIsle(){
+  const i=V.i,I=ISL[i],ch=chunks(i);
+  const list=ch.map((c,k)=>{const d=doneOf(i).includes(k),ok=c.filter(w=>st(w.id)==='ok').length;
+    return `<button class="card mis" data-a="mission" data-v="${k}"><span class="ic" style="background:${d?'#c9f5dd':'var(--sun)'}">${d?'✅':'⚔️'}</span>
+    <span class="grow"><b>Missie ${k+1}</b><br><span class="mut">${c.length} woorden · ⭐ ${ok}/${c.length}${d?' · opnieuw spelen mag':''}</span></span><span aria-hidden="true" style="font-size:1.5rem">▶</span></button>`}).join('');
+  const cm=I.crew,has=S.crew.includes(i);
+  return `<div class="col">${backBtn('map','Kaart')}
+  <div class="banner" style="background:${I.bg}">${isleArt(i)}<div class="col" style="gap:4px"><h2>${esc(I.n)}</h2><p>Hier oefen je: <b>${esc(I.t)}</b></p></div></div>
+  ${ch.length?list:'<p class="card">Op dit eiland staan nog geen woorden. Een ouder kan woorden toevoegen.</p>'}
+  <div class="card row"><div style="width:70px" class="${has?'':'crewc off'}">${crewArt(cm)}</div><div class="grow"><b>${has?esc(cm.n)+' hoort bij je crew!':'Wie woont hier?'}</b><br><span class="mut">${has?esc(cm.r):'Maak alle missies af en ontdek je nieuwe crewlid.'}</span></div></div></div>`;
+}
+/* ---------- oefenen ---------- */
+function startGame(ids,key){
+  G={q:ids,i:0,key,res:{},coins:0,focus:false};newWord();go('play');
+  const first=wordById(ids[0]);setTimeout(()=>{if(G&&V.s==='play'&&G.i===0)playWord(first,S.set.slow)},250);
+}
+function newWord(){Object.assign(G,{wrong:0,last:'',phase:'ask',hide:false,shown:false,peek:false})}
+function slots(w,mode){const a=[...w];return `<div class="slots" aria-label="${a.length} letters">${a.map((c,k)=>{
+  if(c===' ')return '<i class="sp"></i>';
+  if(mode===2){const l=[...G.last][k];if(k===0)return `<i>${esc(c)}</i>`;if(l&&l.toLowerCase()===c.toLowerCase())return `<i class="g">${esc(c)}</i>`}
+  return '<i></i>'}).join('')}</div>`}
+function vPlay(){
+  const w=wordById(G.q[G.i]);if(!w){finish();return vEnd()}
+  const dots=G.q.map((_,k)=>`<i class="${k<G.i?'d':k===G.i?'c':''}"></i>`).join('');
+  const hear=canHear(w),peekOn=S.set.peek||!hear;
+  let body='';
+  if(G.phase==='ok'){
+    const r=G.res[w.id];
+    body=`<div class="good col center pop"><div style="font-size:2.4rem" aria-hidden="true">${r==='ok'?'⭐':'👍'}</div><h2>${r==='ok'?'Helemaal goed!':'Goed gedaan!'}</h2>
+     <div class="fullword">${esc(w.w)}</div><p><b>+${r==='ok'?3:1} 🪙</b>${r==='ok'?'':' · Dit woord komt later nog een keer terug.'}</p></div>
+     ${w.m||w.z?`<div class="hint col" style="border-style:solid">${w.m?`<p><b>Wat betekent het?</b> ${esc(w.m)}</p>`:''}${w.z?`<p><b>Zin:</b> ${esc(w.z)}</p>`:''}</div>`:''}
+     <label>Wil je zelf een zin maken? (mag, hoeft niet)<input type="text" id="ownzin" maxlength="140" autocomplete="off" value="${esc(P(w.id).zin)}" placeholder="Schrijf hier je eigen zin"></label>
+     <button class="btn leaf big" data-a="next">${G.i<G.q.length-1?'Volgende ➜':'Klaar! 🎉'}</button>`;
+  }else{
+    let hint='';
+    if(G.phase==='shown')hint=`<div class="hint col center"><p>Zo schrijf je het woord. Kijk goed!</p><div class="fullword">${esc(w.w)}</div><button class="btn sun" data-a="cover">🙈 Verberg en schrijf uit je hoofd</button></div>`;
+    else if(G.phase==='peek')hint=`<div class="hint col center"><p>Kijk goed naar het woord.</p><div class="fullword">${esc(w.w)}</div><button class="btn sun" data-a="cover">🙈 Verberg en schrijf</button></div>`;
+    else if(G.wrong>=3)hint=`<div class="row" style="justify-content:center"><span class="mut">Schrijf het woord nu uit je hoofd.</span><button class="btn sm" data-a="reshow">👀 Toon nog eens</button></div>`;
+    else if(G.wrong>0)hint=G.hide?`<div class="row" style="justify-content:center"><button class="btn sm" data-a="hinttoggle">💡 Toon hint</button></div>`:
+      `<div class="hint col center"><p><b>Bijna!</b> ${G.wrong===1?`Het woord heeft <b>${[...w.w].filter(c=>c!==' ').length} letters</b>.`:`De eerste letter is <b>${esc([...w.w][0])}</b>. Groene letters had je al goed.`}</p>${slots(w.w,G.wrong)}<button class="btn sm" data-a="hinttoggle">🙈 Verberg hint</button></div>`;
+    const lock=G.phase!=='ask';
+    body=`<div class="col center"><p><b>${hear?'Luister en schrijf het woord.':'Kijk, verberg en schrijf het woord.'}</b></p>
+      ${hear?`<button class="listen" data-a="listen" aria-label="Luister naar het woord">🔊</button>`:''}
+      <div class="row" style="justify-content:center">
+       ${hear?`<button class="btn sm" data-a="slow">🐢 Langzaam</button>`:''}
+       ${hear&&w.z&&ttsState()!=='nee'?`<button class="btn sm" data-a="sayzin">💬 Hoor de zin</button>`:''}
+       ${peekOn&&G.phase==='ask'&&G.wrong<3?`<button class="btn sm" data-a="peek">👀 Kijk</button>`:''}
+       ${hear&&!S.set.peek?`<button class="btn sm" data-a="nosound">🔇 Geen geluid?</button>`:''}</div></div>
+     ${!hear&&w.m?`<p class="hint" style="border-style:solid"><b>Tip:</b> ${esc(w.m)}</p>`:''}
+     ${hint}
+     <form class="col" data-f="check" autocomplete="off"><input class="answer" id="answer" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done" aria-label="Typ het woord" placeholder="${lock?'':'typ hier'}" ${lock?'disabled':''}>
+     <button class="btn sun big" type="submit" ${lock?'disabled':''}>Controleer ✔</button></form>
+     ${G.wrong>=3?`<button class="btn sm" data-a="skip" style="align-self:center">⏭ Later nog eens</button>`:''}`;
+  }
+  return `<div class="play col"><div class="row"><button class="btn sm" data-a="quit" aria-label="Stoppen en terug">⬅ Stop</button><div class="dots grow" aria-label="Woord ${G.i+1} van ${G.q.length}">${dots}</div><span class="pill">🪙 ${G.coins}</span></div>
+  <div class="card col" style="padding:20px">${body}</div></div>`;
+}
+function check(){
+  const inp=$('#answer');if(!inp)return;const val=norm(inp.value),w=wordById(G.q[G.i]);if(!val){inp.focus();return}
+  const p=P(w.id);p.tries++;G.focus=true;
+  if(val===norm(w.w)){
+    const clean=G.wrong===0&&!G.shown;
+    if(clean){p.st='ok';p.clean++}else if(p.st!=='ok')p.st='help';
+    G.res[w.id]=clean?'ok':'help';const c=clean?3:1;G.coins+=c;S.coins+=c;G.phase='ok';G.focus=false;chime();
+  }else{
+    p.wrong++;if(p.st==='new')p.st='help';G.wrong++;G.last=inp.value.trim();G.hide=false;
+    if(G.wrong>=3){G.phase='shown';G.shown=true}
+  }
+  save();draw();
+}
+function nextWord(){
+  const z=$('#ownzin'),w=wordById(G.q[G.i]);if(z&&w){P(w.id).zin=z.value.trim();save()}
+  G.i++;if(G.i>=G.q.length){finish();return}
+  newWord();G.focus=true;draw();playWord(wordById(G.q[G.i]),S.set.slow);
+}
+function finish(){
+  const out={coins:G.coins,res:G.res,q:G.q,tre:null,crew:null,isl:null};
+  if(G.key){const [i,k]=G.key;out.isl=i;const d=S.done[i]||(S.done[i]=[]);
+    if(!d.includes(k)){d.push(k);S.coins+=5;out.coins+=5;
+      const free=TRE.map((_,x)=>x).filter(x=>!S.tre.includes(x));if(free.length){S.tre.push(free[0]);out.tre=free[0]}}
+    if(complete(i)&&!S.crew.includes(i)){S.crew.push(i);out.crew=i}}
+  save();G=null;V={s:'end',out};
+}
+function vEnd(){
+  const o=V.out,ok=Object.values(o.res).filter(x=>x==='ok').length;
+  return `<div class="play col center"><h1 class="light" style="font-size:1.9rem">Missie volbracht! 🎉</h1>
+  <div class="card col center pop" style="width:100%"><div class="stat" style="justify-content:center"><span class="pill">🪙 +${o.coins} munten</span><span class="pill ok">⭐ ${ok} zonder hulp</span></div>
+   ${o.tre!=null?`<div class="tre" style="width:150px"><span>${TRE[o.tre][0]}</span>Nieuwe schat:<br>${esc(TRE[o.tre][1])}</div>`:''}
+   ${o.crew!=null?`<div style="width:120px">${crewArt(ISL[o.crew].crew)}</div><p><b>${esc(ISL[o.crew].crew.n)}</b> (${esc(ISL[o.crew].crew.r)}) komt bij je crew!${o.crew<5?' Het volgende eiland is open.':' Je hebt alle eilanden ontdekt!'}</p>`:''}
+   <div class="row" style="justify-content:center">${o.q.map(id=>{const w=wordById(id),r=o.res[id];return w?`<span class="pill ${r==='ok'?'ok':'help'}">${r==='ok'?'⭐':'🔁'} ${esc(w.w)}</span>`:''}).join('')}</div>
+   <p class="mut">🔁 = dit woord oefen je later nog een keer.</p></div>
+  <button class="btn sun big" data-a="go" data-v="${o.isl!=null?'isle':'map'}" data-i="${o.isl!=null?o.isl:''}">Verder ⛵</button></div>`;
+}
+/* ---------- bibliotheek ---------- */
+let LQ='',LF='all',LO=null;
+const stPill=s=>s==='ok'?'<span class="pill ok">⭐ Beheerst</span>':s==='help'?'<span class="pill help">🔁 Herhalen</span>':'<span class="pill new">Nog oefenen</span>';
+function libCards(){
+  const q=norm(LQ);const l=S.words.filter(w=>(!q||norm(w.w).includes(q))&&(LF==='all'||(LF==='ok'&&st(w.id)==='ok')||(LF==='todo'&&st(w.id)!=='ok')||(LF==='zin'&&(S.prog[w.id]||{}).zin)));
+  if(!l.length)return '<p class="card">Geen woorden gevonden.</p>';
+  return `<div class="grid">${l.map(w=>{const open=LO===w.id,p=S.prog[w.id]||{};
+    return `<div class="card wcard"><div class="row"><span class="w grow">${esc(w.w)}</span><button class="btn sm sky" data-a="libsay" data-v="${w.id}" aria-label="Luister naar ${esc(w.w)}">🔊</button></div>
+    <div class="row">${stPill(st(w.id))}<span class="pill">${esc(ISL[w.isl].n)}</span></div>
+    ${open?`${w.m?`<p><b>Betekenis:</b> ${esc(w.m)}</p>`:''}${w.z?`<p><b>Zin:</b> ${esc(w.z)}</p>`:''}
+      <label>Mijn eigen zin<input type="text" id="lz-${w.id}" maxlength="140" autocomplete="off" value="${esc(p.zin||'')}"></label>
+      <div class="row"><button class="btn sm sun" data-a="libzin" data-v="${w.id}">Bewaar zin</button><button class="btn sm" data-a="libopen" data-v="">Sluit</button></div>`
+     :`${p.zin?`<p class="mut">✏️ ${esc(p.zin)}</p>`:''}<button class="btn sm" data-a="libopen" data-v="${w.id}">Meer lezen</button>`}</div>`}).join('')}</div>`;
+}
+function vLib(){
+  const f=[['all','Alles'],['ok','⭐ Beheerst'],['todo','Nog oefenen'],['zin','✏️ Mijn zinnen']];
+  return `<div class="col"><h1 class="light">💎 Mijn Schatten</h1>
+  <div class="card col"><input type="search" id="libq" placeholder="🔍 Zoek een woord" value="${esc(LQ)}" aria-label="Zoek een woord" autocomplete="off">
+  <div class="tabs">${f.map(x=>`<button data-a="libf" data-v="${x[0]}" class="${LF===x[0]?'on':''}">${x[1]}</button>`).join('')}</div></div>
+  <div id="libout">${libCards()}</div></div>`;
+}
+function vCrew(){
+  return `<div class="col"><h1 class="light">🏴 Crew van kapitein ${esc(S.name)}</h1>
+  <div class="card col"><div class="crewg"><div class="crewc">${crewArt(CAPTAIN)}<b>${esc(S.name)}</b><br><span class="mut">${rank()}</span></div>
+  ${ISL.map((I,i)=>{const h=S.crew.includes(i);return `<div class="crewc ${h?'':'off'}">${crewArt(I.crew)}<b>${h?esc(I.crew.n):'???'}</b><br><span class="mut">${h?esc(I.crew.r):'Woont op '+esc(I.n)}</span></div>`}).join('')}</div></div>
+  <h2 class="light">Schatkist (${S.tre.length}/${TRE.length})</h2>
+  <div class="card"><div class="treg">${TRE.map((t,x)=>{const h=S.tre.includes(x);return `<div class="tre ${h?'':'off'}"><span>${t[0]}</span>${h?esc(t[1]):'???'}</div>`}).join('')}</div>
+  <p class="mut" style="margin-top:10px">Elke nieuwe missie geeft een schat.</p></div></div>`;
+}
+/* ---------- ouders ---------- */
+let gate=null,PT='woorden',PE=null,PQ='',confirmKey='',impText='',expText='',rec=null;
+function vGate(){
+  if(!S.set.pin&&!gate){const a=11+Math.floor(Math.random()*8),b=12+Math.floor(Math.random()*7);gate={a,b}}
+  return `<div class="parent col" style="max-width:480px;margin:0 auto"><h2>🔒 Alleen voor ouders</h2>
+  <form class="col" data-f="gate"><label>${S.set.pin?'Typ de oudercode':`Hoeveel is ${gate.a} × ${gate.b}?`}<input type="${S.set.pin?'password':'text'}" id="gatein" inputmode="numeric" autocomplete="off"></label>
+  <button class="btn sun" type="submit">Open ouderomgeving</button></form>${backBtn('map','Terug naar het spel')}</div>`;
+}
+const cbtn=(key,label,cls)=>`<button class="btn sm ${confirmKey===key?'coral':(cls||'')}" data-a="confirm" data-v="${key}">${confirmKey===key?'Zeker weten? Tik nog eens':label}</button>`;
+function vParent(){
+  const tabs=[['woorden','Woorden'],['voortgang','Voortgang'],['backup','Back-up'],['inst','Instellingen']];
+  let b='';
+  if(PT==='woorden')b=pWords();if(PT==='voortgang')b=pProg();if(PT==='backup')b=pBackup();if(PT==='inst')b=pSet();
+  return `<div class="parent col"><div class="row"><h2 class="grow">Ouderomgeving</h2><button class="btn sm" data-a="leaveparent">⬅ Terug naar het spel</button></div>
+  <div class="tabs">${tabs.map(t=>`<button data-a="ptab" data-v="${t[0]}" class="${PT===t[0]?'on':''}">${t[1]}</button>`).join('')}</div>${b}</div>`;
+}
+const islSel=(id,v)=>`<select id="${id}">${ISL.map((I,i)=>`<option value="${i}" ${i===v?'selected':''}>${i+1}. ${esc(I.n)} (${esc(I.t)})</option>`).join('')}</select>`;
+function pWords(){
+  if(PE){const w=PE==='new'?{id:'new',w:'',m:'',z:'',isl:0}:wordById(PE);if(!w){PE=null;return pWords()}
+    const canRec=!!(navigator.mediaDevices&&window.MediaRecorder&&window.isSecureContext);
+    return `<form class="col" data-f="wsave"><h3>${PE==='new'?'Nieuw woord':'Woord aanpassen'}</h3>
+    <label>Woord<input type="text" id="ew" value="${esc(w.w)}" autocomplete="off" autocapitalize="none" spellcheck="false" required></label>
+    <label>Betekenis (kindertaal)<input type="text" id="em" value="${esc(w.m)}" autocomplete="off"></label>
+    <label>Voorbeeldzin<input type="text" id="ez" value="${esc(w.z)}" autocomplete="off"></label>
+    <label>Eiland${islSel('ei',w.isl)}</label>
+    ${PE==='new'?'<p class="mut">Bewaar het woord eerst. Daarna kunt u er audio aan koppelen.</p>':`<div class="card col" style="box-shadow:none"><b>Audio: ${AUD[w.id]?'eigen opname aanwezig':'voorleesstem van het toestel'}</b>
+      <div class="row"><button type="button" class="btn sm sky" data-a="pplay" data-v="${w.id}">🔊 Beluister</button>
+      ${canRec?`<button type="button" class="btn sm ${rec?'coral':''}" data-a="rec" data-v="${w.id}">${rec?'⏹ Stop opname':'🎙 Neem op'}</button>`:''}
+      <label class="btn sm" style="flex-direction:row">📁 Kies audiobestand<input type="file" id="eaud" accept="audio/*" hidden></label>
+      ${AUD[w.id]?`<button type="button" class="btn sm" data-a="auddel" data-v="${w.id}">Verwijder audio</button>`:''}</div>
+      ${canRec?'':'<p class="mut">Opnemen in de app kan alleen via een https-adres met microfoontoegang. Een audiobestand kiezen (mp3, m4a, wav) werkt overal.</p>'}</div>`}
+    <div class="row"><button class="btn sun" type="submit">Bewaar</button><button type="button" class="btn" data-a="pedit" data-v="">Annuleer</button>${PE!=='new'?cbtn('del:'+w.id,'Verwijder woord'):''}</div></form>`}
+  const q=norm(PQ),l=S.words.filter(w=>!q||norm(w.w).includes(q));
+  return `<div class="row"><button class="btn sm sun" data-a="pedit" data-v="new">＋ Nieuw woord</button><input type="search" id="pq" class="grow" style="min-width:160px" placeholder="Zoek in ${S.words.length} woorden" value="${esc(PQ)}" autocomplete="off"></div>
+  <details class="card" style="box-shadow:none"><summary><b>Woordenlijst plakken (meerdere woorden tegelijk)</b></summary><div class="col" style="margin-top:10px">
+   <p class="mut">Eén woord per regel. Optioneel: <code>woord | betekenis | voorbeeldzin</code>. Dubbele woorden worden overgeslagen.</p>
+   <textarea id="bulk" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="fiets | Een voertuig met twee wielen. | Ik ga met de fiets naar school."></textarea>
+   <label>Eiland${islSel('bulkisl',0)}</label><button class="btn sm sun" data-a="bulkadd">Voeg toe</button></div></details>
+  <div class="tbl" id="pwout">${pWordRows(l)}</div>`;
+}
+function pWordRows(l){return `<table><thead><tr><th>Woord</th><th>Eiland</th><th>Audio</th><th></th></tr></thead><tbody>${l.map(w=>`<tr><td><b>${esc(w.w)}</b><br><span class="mut">${esc(w.m)}</span></td><td>${esc(ISL[w.isl].n)}</td><td>${AUD[w.id]?'opname':'stem'}</td><td><button class="btn sm" data-a="pedit" data-v="${w.id}">Bewerk</button></td></tr>`).join('')}</tbody></table>`}
+function pProg(){
+  const tot=S.words.length,m=mastered(),rev=review(),hard=S.words.filter(w=>(S.prog[w.id]||{}).wrong>0).sort((a,b)=>S.prog[b.id].wrong-S.prog[a.id].wrong).slice(0,20);
+  return `<div class="stat"><span class="pill ok">⭐ Beheerst: ${m}/${tot}</span><span class="pill help">🔁 Herhaallijst: ${rev.length}</span><span class="pill new">Nog niet geoefend: ${S.words.filter(w=>st(w.id)==='new').length}</span><span class="pill">🪙 ${S.coins}</span></div>
+  <h3>Per eiland</h3><div class="tbl"><table><thead><tr><th>Eiland</th><th class="n">Missies</th><th class="n">Beheerst</th></tr></thead><tbody>${ISL.map((I,i)=>{const iw=islWords(i),ch=chunks(i);return `<tr><td>${esc(I.n)}</td><td class="n">${ch.filter((_,k)=>doneOf(i).includes(k)).length}/${ch.length}</td><td class="n">${iw.filter(w=>st(w.id)==='ok').length}/${iw.length}</td></tr>`}).join('')}</tbody></table></div>
+  <h3>Herhaallijst</h3>${rev.length?`<div class="row">${rev.map(w=>`<span class="pill help">${esc(w.w)}</span>`).join('')}</div>`:'<p class="mut">Leeg. Woorden komen hier als er een hint of het antwoord nodig was.</p>'}
+  <h3>Moeilijkste woorden</h3>${hard.length?`<div class="tbl"><table><thead><tr><th>Woord</th><th class="n">Fout getypt</th><th class="n">Pogingen</th><th class="n">Zonder hulp goed</th><th>Status</th></tr></thead><tbody>${hard.map(w=>{const p=S.prog[w.id];return `<tr><td><b>${esc(w.w)}</b></td><td class="n">${p.wrong}</td><td class="n">${p.tries}</td><td class="n">${p.clean}</td><td>${stPill(p.st)}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="mut">Nog geen fouten geregistreerd.</p>'}
+  <p class="mut">Beheerst = later zelfstandig goed geschreven, zonder hint en zonder dat het antwoord getoond werd.</p>`;
+}
+function pBackup(){
+  const share=!!(navigator.canShare&&window.File);
+  return `<p class="note"><b>Belangrijk:</b> alle voortgang staat alleen op dit toestel, in deze browser. Er is geen automatische synchronisatie. Overzetten naar een ander toestel: hier exporteren, daar importeren. Wie de browsergegevens wist, wist ook de voortgang. Maak dus af en toe een back-up.</p>
+  <h3>Exporteren</h3><div class="row"><button class="btn sm sun" data-a="expfile">⬇ Download back-upbestand</button>${share?'<button class="btn sm" data-a="expshare">📤 Deel / bewaar in Bestanden</button>':''}<button class="btn sm" data-a="exptext">📋 Toon als tekst</button></div>
+  ${expText?`<textarea id="exptxt" readonly style="min-height:120px;font-size:.8rem">${esc(expText)}</textarea><div class="row"><button class="btn sm" data-a="expcopy">Kopieer tekst</button><span class="mut">Werkt downloaden niet? Kopieer deze tekst en mail of bewaar hem.</span></div>`:''}
+  <h3>Importeren</h3><p class="mut">Importeren vervangt alle woorden, voortgang en opnames op dit toestel.</p>
+  <div class="row"><label class="btn sm" style="flex-direction:row">📁 Kies back-upbestand<input type="file" id="impfile" accept=".json,application/json,text/plain" hidden></label></div>
+  <textarea id="imptxt" placeholder="…of plak hier de back-uptekst" style="font-size:.8rem" autocomplete="off" spellcheck="false">${esc(impText)}</textarea>
+  <div class="row">${cbtn('import','Importeer geplakte tekst','sun')}</div>`;
+}
+function pSet(){
+  const nl=nlVoices(),ts=ttsState();
+  return `<label>Naam van de kapitein<input type="text" id="sname" maxlength="20" value="${esc(S.name)}" autocomplete="off"></label>
+  <label>Voorleesstem ${ts==='ja'?`<select id="svoice"><option value="">Automatisch</option>${nl.map(v=>`<option value="${esc(v.voiceURI)}" ${v.voiceURI===S.set.voice?'selected':''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select>`:''}</label>
+  ${ts==='nee'?'<p class="note">Dit toestel heeft geen Nederlandse voorleesstem. De app gebruikt dan "kijk, verberg en schrijf". Oplossing: installeer een Nederlandse stem in de toestelinstellingen (Toegankelijkheid › Gesproken materiaal / Tekst-naar-spraak) of koppel eigen opnames bij Woorden.</p>':''}
+  ${ts==='misschien'?'<p class="note">De browser toont (nog) geen stemmenlijst. Test hieronder of u iets hoort.</p>':''}
+  <div class="row"><button class="btn sm sky" data-a="voicetest">🔊 Test de stem</button></div>
+  <label class="row" style="flex-direction:row"><input type="checkbox" id="sslow" ${S.set.slow?'checked':''} style="width:24px;height:24px"> Altijd langzaam voorlezen</label>
+  <label class="row" style="flex-direction:row"><input type="checkbox" id="speek" ${S.set.peek?'checked':''} style="width:24px;height:24px"> Kijk-knop tonen (woord bekijken, verbergen, schrijven)</label>
+  <label class="row" style="flex-direction:row"><input type="checkbox" id="sopen" ${S.set.openAll?'checked':''} style="width:24px;height:24px"> Alle eilanden meteen open</label>
+  <label class="row" style="flex-direction:row"><input type="checkbox" id="ssfx" ${S.set.sfx?'checked':''} style="width:24px;height:24px"> Vrolijk geluidje bij een goed woord</label>
+  <label>Oudercode (leeg = rekensom als slot)<input type="text" id="spin" inputmode="numeric" maxlength="8" value="${esc(S.set.pin)}" autocomplete="off"></label>
+  <div class="row"><button class="btn sm sun" data-a="setsave">Bewaar instellingen</button></div>
+  <h3>Opnieuw beginnen</h3><div class="row">${cbtn('resetprog','Wis alleen de voortgang')}${cbtn('resetall','Wis alles (ook eigen woorden en opnames)')}</div>`;
+}
+function exportData(){return JSON.stringify({app:'woordenzee',v:1,exported:new Date().toISOString(),state:S,audio:AUD})}
+function importData(txt){
+  let o;try{o=JSON.parse(txt)}catch(e){toast('Dit is geen geldige back-up.');return false}
+  if(!o||o.app!=='woordenzee'||!o.state||!Array.isArray(o.state.words)){toast('Dit is geen Woordenzee-back-up.');return false}
+  Object.keys(AUD).forEach(k=>audSet(k,null));
+  S=Object.assign(fresh(),o.state);S.set=Object.assign(fresh().set,o.state.set||{});
+  S.words=S.words.filter(w=>w&&w.id&&w.w).map(w=>({id:String(w.id),w:String(w.w),m:String(w.m||''),z:String(w.z||''),isl:Math.min(5,Math.max(0,w.isl|0))}));
+  Object.entries(o.audio||{}).forEach(([k,v])=>{if(typeof v==='string'&&v.startsWith('data:audio'))audSet(k,v)});
+  save();impText='';toast('Back-up geïmporteerd ✔');return true;
+}
+function fileName(){return 'woordenzee-backup-'+new Date().toISOString().slice(0,10)+'.json'}
+function readAudioFile(f,id){if(!f)return;if(f.size>3e6){toast('Bestand te groot (max 3 MB).');return}
+  const r=new FileReader();r.onload=()=>{audSet(id,String(r.result));toast('Audio gekoppeld ✔');draw()};r.readAsDataURL(f)}
+/* ================= ACTIES ================= */
+const A={
+  go(el){const v=el.dataset.v;if(v==='gate')gate=null;if(v==='isle')go('isle',{i:+el.dataset.i});else go(v)},
+  start(){const n=$('#capname').value.trim();if(!n){$('#capname').focus();toast('Typ eerst je naam.');return}
+    S.name=n;save();say(' ');try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}go('map')},
+  isle(el){const i=+el.dataset.v;if(!unlocked(i)){toast('Maak eerst eiland '+i+' af. Dan gaat dit eiland open!');return}go('isle',{i})},
+  mission(el){const i=V.i,k=+el.dataset.v,c=chunks(i)[k];if(!c)return;const ids=c.map(w=>w.id);
+    review().filter(w=>!ids.includes(w.id)).slice(0,2).forEach(w=>ids.push(w.id));startGame(ids,[i,k])},
+  review(){const r=review().slice(0,6).map(w=>w.id);if(r.length)startGame(r,null)},
+  listen(){playWord(wordById(G.q[G.i]),S.set.slow);const i=$('#answer');if(i&&!i.disabled)i.focus()},
+  slow(){playWord(wordById(G.q[G.i]),true);const i=$('#answer');if(i&&!i.disabled)i.focus()},
+  sayzin(){say(wordById(G.q[G.i]).z,S.set.slow)},
+  nosound(){S.set.peek=true;save();G.focus=false;draw();toast('Tik op 👀 Kijk om het woord te zien.')},
+  peek(){G.phase='peek';G.focus=false;draw()},
+  cover(){G.phase='ask';G.focus=true;draw()},
+  reshow(){G.phase='shown';G.focus=false;draw()},
+  hinttoggle(){G.hide=!G.hide;G.focus=true;draw()},
+  skip(){const w=wordById(G.q[G.i]);G.res[w.id]='help';G.i++;if(G.i>=G.q.length){finish();draw();return}newWord();G.focus=true;draw();playWord(wordById(G.q[G.i]),S.set.slow)},
+  next(){nextWord();if(V.s==='end')draw()},
+  quit(){const k=G&&G.key;G=null;try{speechSynthesis.cancel()}catch(e){}k?go('isle',{i:k[0]}):go('map')},
+  libsay(el){const w=wordById(el.dataset.v);if(!canHear(w))toast('Geen geluid op dit toestel.');else playWord(w,S.set.slow)},
+  libopen(el){LO=el.dataset.v||null;$('#libout').innerHTML=libCards()},
+  libzin(el){const id=el.dataset.v;P(id).zin=$('#lz-'+id).value.trim();save();toast('Zin bewaard ✔');LO=null;$('#libout').innerHTML=libCards()},
+  libf(el){LF=el.dataset.v;draw()},
+  leaveparent(){PE=null;confirmKey='';expText='';go('map')},
+  ptab(el){PT=el.dataset.v;PE=null;confirmKey='';draw()},
+  pedit(el){PE=el.dataset.v||null;confirmKey='';draw()},
+  pplay(el){playWord(wordById(el.dataset.v),false)},
+  auddel(el){audSet(el.dataset.v,null);draw()},
+  async rec(el){const id=el.dataset.v;
+    if(rec){rec.stop();return}
+    try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});const parts=[];const mr=new MediaRecorder(stream);
+      mr.ondataavailable=e=>parts.push(e.data);
+      mr.onstop=()=>{stream.getTracks().forEach(t=>t.stop());rec=null;const b=new Blob(parts,{type:mr.mimeType||'audio/webm'});const r=new FileReader();
+        r.onload=()=>{audSet(id,String(r.result));toast('Opname bewaard ✔');draw()};r.readAsDataURL(b)};
+      rec=mr;mr.start();draw()}catch(e){rec=null;toast('Opnemen lukt niet. Kies een audiobestand.');draw()}},
+  bulkadd(){const isl=+$('#bulkisl').value;let add=0,skip=0;
+    $('#bulk').value.split(/\r?\n/).forEach(line=>{const p=line.split('|').map(x=>x.trim().replace(/\s+/g,' '));if(!p[0])return;
+      if(S.words.some(w=>norm(w.w)===norm(p[0]))){skip++;return}
+      S.words.push({id:'c'+(S.next++),w:p[0],m:p[1]||'',z:p[2]||'',isl});add++});
+    save();toast(add+' toegevoegd'+(skip?', '+skip+' dubbel overgeslagen':''));draw()},
+  confirm(el){const k=el.dataset.v;
+    if(k==='import'){impText=$('#imptxt').value}
+    if(confirmKey!==k){confirmKey=k;draw();return}
+    confirmKey='';
+    if(k.startsWith('del:')){const id=k.slice(4);S.words=S.words.filter(w=>w.id!==id);delete S.prog[id];audSet(id,null);PE=null;save();toast('Woord verwijderd')}
+    if(k==='import'){importData(impText)}
+    if(k==='resetprog'){S.prog={};S.done={};S.tre=[];S.crew=[];S.coins=0;save();toast('Voortgang gewist')}
+    if(k==='resetall'){Object.keys(AUD).forEach(x=>audSet(x,null));const n=S.name;S=fresh();S.name=n;save();toast('Alles gewist')}
+    draw()},
+  expfile(){try{const b=new Blob([exportData()],{type:'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=fileName();document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+    toast('Back-up gedownload. Niets gezien? Gebruik "Toon als tekst".')}catch(e){A.exptext()}},
+  async expshare(){try{const f=new File([exportData()],fileName(),{type:'application/json'});if(navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Woordenzee back-up'});return}}catch(e){if(e&&e.name==='AbortError')return}A.exptext()},
+  exptext(){expText=exportData();draw()},
+  async expcopy(){const t=$('#exptxt');try{await navigator.clipboard.writeText(t.value);toast('Gekopieerd ✔')}catch(e){t.focus();t.select();toast('Tekst geselecteerd. Kies nu Kopieer.')}},
+  voicetest(){S.set.voice=($('#svoice')||{}).value||'';if(!say('Ahoy kapitein! Schrijf het woord schat.',$('#sslow').checked))toast('Deze browser kan niet voorlezen.')},
+  setsave(){S.name=$('#sname').value.trim()||S.name;S.set.voice=($('#svoice')||{}).value||'';S.set.slow=$('#sslow').checked;S.set.peek=$('#speek').checked;
+    S.set.openAll=$('#sopen').checked;S.set.sfx=$('#ssfx').checked;S.set.pin=$('#spin').value.trim();save();toast('Instellingen bewaard ✔');draw()}
+};
+const F={
+  check(){check()},
+  gate(){const v=$('#gatein').value.trim();if(S.set.pin?v===S.set.pin:+v===gate.a*gate.b){gate=null;PT='woorden';go('parent')}else{toast('Dat klopt niet.');$('#gatein').value=''}},
+  wsave(){const w=$('#ew').value.trim().replace(/\s+/g,' ');if(!w)return;
+    if(S.words.some(x=>x.id!==PE&&norm(x.w)===norm(w))){toast('Dit woord staat al in de lijst.');return}
+    const d={w,m:$('#em').value.trim(),z:$('#ez').value.trim(),isl:+$('#ei').value};
+    if(PE==='new'){const id='c'+(S.next++);S.words.push(Object.assign({id},d));PE=id;toast('Bewaard. U kunt nu audio koppelen.')}
+    else{Object.assign(wordById(PE),d);PE=null;toast('Bewaard ✔')}
+    save();draw()}
+};
+document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el||el.disabled)return;const f=A[el.dataset.a];if(f){if(el.dataset.a!=='confirm'&&confirmKey){confirmKey=''}f(el,e)}});
+document.addEventListener('submit',e=>{const f=e.target.dataset&&F[e.target.dataset.f];if(f){e.preventDefault();f()}});
+document.addEventListener('input',e=>{const t=e.target;
+  if(t.id==='libq'){LQ=t.value;$('#libout').innerHTML=libCards()}
+  if(t.id==='pq'){PQ=t.value;const q=norm(PQ);$('#pwout').innerHTML=pWordRows(S.words.filter(w=>!q||norm(w.w).includes(q)))}
+  if(t.id==='imptxt'){impText=t.value}});
+document.addEventListener('change',e=>{const t=e.target;
+  if(t.id==='eaud'&&PE)readAudioFile(t.files[0],PE);
+  if(t.id==='impfile'&&t.files[0]){const r=new FileReader();r.onload=()=>{impText=String(r.result);confirmKey='import';draw();toast('Bestand geladen. Tik op de rode knop om te importeren.')};r.readAsText(t.files[0])}});
+/* ================= START ================= */
+load();draw();
+idbOpen().then(()=>{if(V.s==='parent')draw()});
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
+</script>
+</body>
+</html>
