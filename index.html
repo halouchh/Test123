@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hoe Claude werkt</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: one screen. A 3D stage fills the middle; the caption and a five-part timeline sit under it. */
+:root {
+  --bg: #EDF0F5;
+  --fg: #121A2B;
+  --muted: #5A647A;
+  --line: #C6CEDC;
+  --tile: #FFFFFF;
+  --accent: #D95A14;
+  --accent-2: #17788C;
+  --vec-lo: #CBD3E0;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D121E; --fg: #E8ECF4; --muted: #8F9AB0; --line: #2E3950;
+    --tile: #1A2235; --accent: #FF8B3D; --accent-2: #4CC2D8; --vec-lo: #283350;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D121E; --fg: #E8ECF4; --muted: #8F9AB0; --line: #2E3950;
+  --tile: #1A2235; --accent: #FF8B3D; --accent-2: #4CC2D8; --vec-lo: #283350;
+  color-scheme: dark;
+}
+
+[hidden] { display: none !important; }
+html { height: 100%; box-sizing: border-box; }
+body {
+  height: 100%; margin: 0; box-sizing: border-box;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  display: flex; flex-direction: column; gap: 10px;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; letter-spacing: -0.01em; margin: 0; }
+.meta { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+#stage { flex: 1 1 auto; min-height: 260px; position: relative; min-width: 0; }
+#stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#fallback { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 24px; }
+
+.caption { display: flex; gap: 12px; align-items: baseline; min-height: 3.4em; max-width: 46rem; width: 100%; margin-inline: auto; }
+.caption .n { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); flex: none; font-variant-numeric: tabular-nums; }
+.caption p { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.05rem, 2.6vw, 1.4rem); line-height: 1.25; margin: 0; text-wrap: balance; min-width: 0; }
+
+.controls { display: flex; gap: 12px; align-items: stretch; max-width: 46rem; width: 100%; margin-inline: auto; }
+#play {
+  flex: none; min-width: 6.2em; padding: 0 14px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--fg); background: var(--fg); color: var(--bg);
+  font: 600 0.85rem var(--font-body);
+}
+.timeline { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: 3fr 3fr 4fr 3fr 2fr; gap: 4px; }
+.seg {
+  min-width: 0; padding: 0 0 4px; border: 0; background: none; color: var(--muted); cursor: pointer; text-align: left;
+  font: 500 0.7rem var(--font-mono); letter-spacing: 0.02em;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.seg .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.seg .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+.seg span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seg.on { color: var(--fg); }
+#play:focus-visible, .seg:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; }
+@media (max-width: 480px) {
+  .controls { flex-direction: column-reverse; gap: 10px; }
+  #play { padding: 9px 14px; }
+  .timeline { grid-template-columns: repeat(5, 1fr); }
+  .seg { font-size: 0.63rem; letter-spacing: 0; }
+}
+</style>
+</head><body>
+<header>
+  <h1>Hoe Claude werkt</h1>
+  <div class="meta" id="clock">00,0 / 15,0 s</div>
+</header>
+
+<div id="stage" role="img" aria-label="3D-animatie: een vraag wordt opgeknipt in tokens, omgezet in getallen, door lagen met attention gestuurd, waarna Claude het volgende token voorspelt en zo het antwoord opbouwt.">
+  <div id="fallback" hidden>De animatie kan hier niet worden getoond, omdat deze browser geen WebGL ondersteunt. De vijf stappen staan hieronder.</div>
+</div>
+
+<div class="caption">
+  <span class="n" id="cap-n">1/5</span>
+  <p id="cap-text">Claude knipt je vraag in kleine stukjes. Die heten tokens.</p>
+</div>
+
+<div class="controls">
+  <button id="play" type="button">Pauze</button>
+  <div class="timeline" id="timeline"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var DUR = 15;
+  var SCENES = [
+    { a: 0,  b: 3,  label: 'Tokens',     text: 'Claude knipt je vraag in kleine stukjes. Die heten tokens.' },
+    { a: 3,  b: 6,  label: 'Getallen',   text: 'Elk token wordt een rij getallen die de betekenis vastlegt.' },
+    { a: 6,  b: 10, label: 'Attention',  text: 'Laag na laag kijkt elk token naar de andere en neemt het de context mee.' },
+    { a: 10, b: 13, label: 'Kansen',     text: 'Daaruit berekent Claude een kans voor elk mogelijk volgend token.' },
+    { a: 13, b: 15, label: 'Herhalen',   text: 'Het gekozen token komt erbij en alles herhaalt zich, tot het antwoord af is.' }
+  ];
+
+  /* ---------- UI ---------- */
+  var elClock = document.getElementById('clock');
+  var elCapN = document.getElementById('cap-n');
+  var elCapText = document.getElementById('cap-text');
+  var elPlay = document.getElementById('play');
+  var elTimeline = document.getElementById('timeline');
+  var elStage = document.getElementById('stage');
+  var fills = [], segs = [];
+
+  SCENES.forEach(function (s, i) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'seg'; b.id = 'seg-' + i;
+    b.innerHTML = '<div class="bar"><i></i></div><span>' + (i + 1) + ' ' + s.label + '</span>';
+    b.addEventListener('click', function () { t = s.a + 0.001; playing = true; syncUI(true); });
+    elTimeline.appendChild(b);
+    segs.push(b); fills.push(b.querySelector('i'));
+  });
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var t = reduce ? DUR : 0;
+  var playing = !reduce;
+  var lastScene = -1, lastLabel = '';
+
+  elPlay.addEventListener('click', function () {
+    if (t >= DUR) { t = 0; playing = true; } else { playing = !playing; }
+    syncUI(true);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); elPlay.click(); }
+  });
+
+  function sceneAt(time) {
+    for (var i = SCENES.length - 1; i >= 0; i--) if (time >= SCENES[i].a) return i;
+    return 0;
+  }
+  function syncUI(force) {
+    var idx = sceneAt(Math.min(t, DUR - 0.0001));
+    if (idx !== lastScene || force) {
+      lastScene = idx;
+      elCapN.textContent = (idx + 1) + '/5';
+      elCapText.textContent = SCENES[idx].text;
+      segs.forEach(function (b, i) { b.classList.toggle('on', i === idx); });
+    }
+    for (var i = 0; i < SCENES.length; i++) {
+      var s = SCENES[i];
+      fills[i].style.width = (clamp((t - s.a) / (s.b - s.a), 0, 1) * 100).toFixed(1) + '%';
+    }
+    var tt = Math.min(t, DUR).toFixed(1).replace('.', ',');
+    elClock.textContent = (tt.length < 4 ? '0' + tt : tt) + ' / 15,0 s';
+    var label = t >= DUR ? 'Opnieuw' : (playing ? 'Pauze' : 'Speel af');
+    if (label !== lastLabel) { lastLabel = label; elPlay.textContent = label; }
+  }
+
+  /* ---------- helpers ---------- */
+  function clamp(x, a, b) { return x < a ? a : (x > b ? b : x); }
+  function lerp(a, b, k) { return a + (b - a) * k; }
+  function seg(time, a, b) { return clamp((time - a) / (b - a), 0, 1); }
+  function ease(x) { return x * x * (3 - 2 * x); }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+  function easeBack(x) { var c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); }
+  var seed = 7;
+  function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  /* ---------- three.js ---------- */
+  var THREE = window.THREE, renderer;
+  try {
+    if (!THREE) throw new Error('three.js niet geladen');
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  } catch (err) {
+    document.getElementById('fallback').hidden = false;
+    playing = false; t = 0;
+    (function tick() { syncUI(false); })();
+    segs.forEach(function (b, i) { b.addEventListener('click', function () { t = SCENES[i].a; playing = false; syncUI(true); }); });
+    elPlay.hidden = true;
+    return;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(0x000000, 0);
+  elStage.appendChild(renderer.domElement);
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+  var sun = new THREE.DirectionalLight(0xffffff, 0.55);
+  sun.position.set(3, 6, 8); scene.add(sun);
+
+  var C = {};                       // theme colours as THREE.Color
+  var MONO = css('--font-mono'), PPU = 140;
+  var labels = [];
+
+  /* A text label or token tile, drawn on a canvas and shown on a plane. */
+  function makeLabel(text, o) {
+    var canvas = document.createElement('canvas');
+    var tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+    var mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+    var mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
+    var L = { text: text, o: o, canvas: canvas, tex: tex, mat: mat, mesh: mesh, sx: 1, sy: 1 };
+    labels.push(L);
+    return L;
+  }
+  function setK(L, k) { L.mesh.scale.set(L.sx * k, L.sy * k, 1); }
+  function drawLabel(L) {
+    var o = L.o, ctx = L.canvas.getContext('2d');
+    if (o.tile) {
+      var W = Math.round(o.w * PPU), H = Math.round(o.h * PPU), px = Math.round(H * 0.47);
+      L.canvas.width = W; L.canvas.height = H;
+      var r = 12, m = 3;
+      ctx.beginPath();
+      ctx.moveTo(m + r, m); ctx.arcTo(W - m, m, W - m, H - m, r); ctx.arcTo(W - m, H - m, m, H - m, r);
+      ctx.arcTo(m, H - m, m, m, r); ctx.arcTo(m, m, W - m, m, r); ctx.closePath();
+      ctx.fillStyle = css('--tile'); ctx.fill();
+      ctx.lineWidth = o.edge ? 5 : 3; ctx.strokeStyle = css(o.edge || '--line'); ctx.stroke();
+      ctx.font = '600 ' + px + 'px ' + MONO; ctx.textBaseline = 'middle';
+      var lead = L.text.charAt(0) === ' ';
+      var body = lead ? L.text.slice(1) : L.text;
+      var dotW = lead ? ctx.measureText('·').width : 0;
+      var x = (W - dotW - ctx.measureText(body).width) / 2, y = H / 2 + 2;
+      if (lead) { ctx.fillStyle = css('--muted'); ctx.fillText('·', x, y); }
+      ctx.fillStyle = css('--fg'); ctx.fillText(body, x + dotW, y);
+      L.sx = o.w; L.sy = o.h;
+    } else {
+      var p = 72, font = (o.weight || 500) + ' ' + p + 'px ' + MONO;
+      ctx.font = font;
+      var w = Math.ceil(ctx.measureText(L.text).width) + 16, h = Math.round(p * 1.3);
+      L.canvas.width = w; L.canvas.height = h;
+      ctx.font = font; ctx.textBaseline = 'middle'; ctx.fillStyle = css(o.color || '--muted');
+      ctx.fillText(L.text, 8, h / 2 + 2);
+      L.sx = o.h * w / h; L.sy = o.h;
+    }
+    L.mesh.scale.set(L.sx, L.sy, 1);
+    L.tex.needsUpdate = true;
+  }
+
+  /* --- input: the question as tokens --- */
+  var TOK = ['Waar', 'om', ' is', ' de', ' lucht', ' blauw', '?'];
+  var IDS = ['9041', '318', '274', '390', '15572', '8236', '30'];   // illustrative ids
+  var N = TOK.length, DIM = 6, TILE_H = 0.9;
+  function tileW(s) { return s.length * 0.26 + 0.36; }
+  function rowX(words, gap) {
+    var total = -gap, xs = [], x = 0;
+    words.forEach(function (w) { total += tileW(w) + gap; });
+    x = -total / 2;
+    words.forEach(function (w) { xs.push(x + tileW(w) / 2); x += tileW(w) + gap; });
+    return xs;
+  }
+  var xJoined = rowX(TOK, 0), xApart = rowX(TOK, 0.24);
+
+  var input = new THREE.Group(); scene.add(input);
+  var tiles = [], ids = [];
+  TOK.forEach(function (s, i) {
+    var T = makeLabel(s, { tile: true, w: tileW(s), h: TILE_H });
+    input.add(T.mesh); tiles.push(T);
+    var I = makeLabel(IDS[i], { h: 0.34, color: '--muted' });
+    I.mesh.position.y = -0.74; input.add(I.mesh); ids.push(I);
+  });
+
+  /* --- vectors: one column of cubes per token --- */
+  var cubes = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshLambertMaterial({ color: 0xffffff }), N * DIM);
+  input.add(cubes);
+  var vals = [];
+  for (var i = 0; i < N * DIM; i++) vals.push([rnd(), rnd(), rnd(), rnd()]);
+  var dummy = new THREE.Object3D(), tmpCol = new THREE.Color();
+
+  /* --- attention: arcs between tokens, in three waves --- */
+  var WAVES = [
+    [[0, 1, 1], [3, 4, 0.9], [4, 5, 0.8], [5, 6, 0.5]],
+    [[2, 4, 0.9], [2, 5, 1], [0, 2, 0.6], [1, 6, 0.5]],
+    [[0, 5, 1], [0, 6, 0.8], [4, 6, 0.6], [1, 4, 0.5]]
+  ];
+  var WAVE0 = 6.2, WAVE_LEN = 1.2;
+  var arcs = [];
+  WAVES.forEach(function (list, w) {
+    list.forEach(function (a, n) {
+      var x1 = xApart[a[0]], x2 = xApart[a[1]], dx = Math.abs(x2 - x1), z = 0.05 + n * 0.04;
+      var curve = new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(x1, 0.5, z), new THREE.Vector3((x1 + x2) / 2, 1.1 + dx * 0.3, z), new THREE.Vector3(x2, 0.5, z));
+      var mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+      var mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 28, 0.02 + 0.03 * a[2], 6, false), mat);
+      input.add(mesh);
+      arcs.push({ wave: w, strength: a[2], mat: mat, mesh: mesh });
+    });
+  });
+
+  /* --- a layer: translucent plate that sweeps through the vectors --- */
+  var plate = new THREE.Group(); input.add(plate);
+  var plateGeo = new THREE.PlaneGeometry(11, 2.5);
+  var plateMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+  var plateEdgeMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0 });
+  plate.add(new THREE.Mesh(plateGeo, plateMat));
+  plate.add(new THREE.LineSegments(new THREE.EdgesGeometry(plateGeo), plateEdgeMat));
+  plate.position.y = -1.68;
+  var layerLabels = ['laag 1', 'laag 2', 'laag 3 …'].map(function (s) {
+    var L = makeLabel(s, { h: 0.3, color: '--accent-2', weight: 600 });
+    L.mesh.position.set(-4.6, 1.5, 0); plate.add(L.mesh); return L;
+  });
+
+  /* --- prediction: bars with a probability per candidate token --- */
+  var CAND = ['De', 'Door', 'Omdat', 'Het', 'Blauw'];
+  var PROB = [0.64, 0.19, 0.09, 0.05, 0.03];
+  var BAR_Y = -1.5, BAR_MAX = 3.2, barX = [-2.6, -1.3, 0, 1.3, 2.6];
+  var bars = [], candLabels = [], pctLabels = [];
+  var barGeo = new THREE.BoxGeometry(0.7, 1, 0.7);
+  CAND.forEach(function (s, j) {
+    var mat = new THREE.MeshLambertMaterial({ transparent: true });
+    var mesh = new THREE.Mesh(barGeo, mat); mesh.position.x = barX[j]; scene.add(mesh); bars.push(mesh);
+    var Lc = makeLabel(s, { h: 0.44, color: '--fg', weight: 600 });
+    Lc.mesh.position.set(barX[j], BAR_Y - 0.4, 0.4); scene.add(Lc.mesh); candLabels.push(Lc);
+    var Lp = makeLabel(Math.round(PROB[j] * 100) + '%', { h: 0.36, color: '--muted' });
+    Lp.mesh.position.set(barX[j], 0, 0.4); scene.add(Lp.mesh); pctLabels.push(Lp);
+  });
+  // distributions for the repeat scene: [0] is the real one, the rest only show "again"
+  var DIST = [PROB.slice()], WIN = [0];
+  for (var n = 1; n <= 5; n++) {
+    var win = Math.floor(rnd() * 5), d = [], sum = 0;
+    if (win === WIN[n - 1]) win = (win + 2) % 5;
+    for (var j = 0; j < 5; j++) { d[j] = j === win ? 2.2 + rnd() : 0.1 + rnd() * 0.6; sum += d[j]; }
+    DIST.push(d.map(function (v) { return v / sum; })); WIN.push(win);
+  }
+  var STEP0 = 13.15, STEP = 0.33;
+
+  /* --- the path from the last token's vector to the prediction --- */
+  var flowCurve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(2.45, 1.6, 0), new THREE.Vector3(0.4, 1.5, 0), new THREE.Vector3(0, 0.55, 0));
+  var flowMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(flowCurve, 28, 0.03, 6, false), flowMat));
+  var pulseMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
+  var pulse = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), pulseMat); scene.add(pulse);
+
+  /* --- output: the answer, token by token --- */
+  var OUT = ['De', ' lucht', ' ver', 'strooit', ' blauw', ' licht'];
+  var OUT_S = 0.85, OUT_Y = -3.25;
+  var xOut = rowX(OUT, 0.1);
+  var output = new THREE.Group(); output.position.y = OUT_Y; output.scale.setScalar(OUT_S); scene.add(output);
+  var outTiles = OUT.map(function (s) {
+    var T = makeLabel(s, { tile: true, w: tileW(s), h: TILE_H, edge: '--accent' });
+    output.add(T.mesh); return T;
+  });
+
+  /* ---------- theme ---------- */
+  function applyTheme() {
+    ['fg', 'muted', 'line', 'accent', 'accent-2', 'vec-lo'].forEach(function (k) { C[k] = new THREE.Color(css('--' + k)); });
+    MONO = css('--font-mono');
+    labels.forEach(drawLabel);
+    arcs.forEach(function (a) { a.mat.color.copy(C['accent-2']); });
+    plateMat.color.copy(C['accent-2']); plateEdgeMat.color.copy(C['accent-2']);
+    flowMat.color.copy(C['accent-2']); pulseMat.color.copy(C.accent);
+  }
+  applyTheme();
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', applyTheme);
+  }
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load('600 60px "JetBrains Mono"').then(applyTheme, function () {});
+    document.fonts.load('500 60px "JetBrains Mono"').then(applyTheme, function () {});
+  }
+
+  /* ---------- size ---------- */
+  function resize() {
+    var w = elStage.clientWidth || 1, h = elStage.clientHeight || 1;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(elStage);
+  window.addEventListener('resize', resize);
+
+  /* ---------- the animation, as a pure function of time ---------- */
+  function update(time) {
+    var i, j, k;
+
+    // camera: slow drift left to right
+    // it starts close on the question and pulls back when the prediction needs room
+    var wide = ease(seg(time, 10.0, 10.9)), tan = Math.tan(Math.PI / 9);
+    var dist = Math.max(lerp(8.6, 12.2, wide), lerp(6.0, 5.1, wide) / (tan * camera.aspect));
+    camera.position.set(Math.sin(time / DUR * Math.PI * 2) * 1.5, 0.3, dist);
+    camera.lookAt(0, -0.1, 0);
+
+    // 1. the sentence splits into tokens, ids appear
+    var split = ease(seg(time, 0.9, 2.0));
+    for (i = 0; i < N; i++) {
+      tiles[i].mesh.position.x = lerp(xJoined[i], xApart[i], split);
+      ids[i].mesh.position.x = xApart[i];
+      ids[i].mat.opacity = seg(time, 2.0 + i * 0.08, 2.4 + i * 0.08) * (1 - seg(time, 3.1, 3.7));
+    }
+
+    // 2. vectors grow under each token; 3. their values change with every layer
+    var stage = ease(seg(time, 6.4, 7.2)) + ease(seg(time, 7.6, 8.4)) + ease(seg(time, 8.8, 9.6));
+    var s0 = Math.min(2, Math.floor(stage)), sf = stage - s0;
+    for (i = 0; i < N; i++) {
+      for (k = 0; k < DIM; k++) {
+        var idx = i * DIM + k, st = 3.3 + i * 0.12 + k * 0.07;
+        var sc = Math.max(0.0001, easeBack(seg(time, st, st + 0.5)));
+        dummy.position.set(xApart[i], -0.78 - k * 0.36, 0);
+        dummy.scale.setScalar(sc); dummy.updateMatrix();
+        cubes.setMatrixAt(idx, dummy.matrix);
+        var v = lerp(vals[idx][s0], vals[idx][s0 + 1], sf);
+        cubes.setColorAt(idx, tmpCol.copy(C['vec-lo']).lerp(C['accent-2'], v));
+      }
+    }
+    cubes.instanceMatrix.needsUpdate = true;
+    if (cubes.instanceColor) cubes.instanceColor.needsUpdate = true;
+
+    // 3. attention arcs and the sweeping layer
+    var wave = clamp(Math.floor((time - WAVE0) / WAVE_LEN), 0, 2);
+    var wp = seg(time, WAVE0 + wave * WAVE_LEN, WAVE0 + (wave + 1) * WAVE_LEN);
+    var bell = Math.sin(Math.PI * wp);
+    var echo = 0;                    // short flash of attention for every new answer token
+    for (n = 1; n <= 5; n++) echo = Math.max(echo, Math.sin(Math.PI * seg(time, STEP0 + (n - 1) * STEP - 0.25, STEP0 + (n - 1) * STEP)));
+    arcs.forEach(function (a) {
+      var o = a.wave === wave ? Math.pow(bell, 0.7) * a.strength : 0;
+      if (a.wave === 2) o = Math.max(o, echo * 0.6 * a.strength);
+      a.mat.opacity = o; a.mesh.visible = o > 0.002;
+    });
+    plate.position.z = lerp(1.6, -1.6, wp);
+    plateMat.opacity = bell * 0.16; plateEdgeMat.opacity = bell * 0.8;
+    layerLabels.forEach(function (L, w) { L.mat.opacity = w === wave ? bell : 0; });
+
+    // 4. the input moves up to make room
+    var up = ease(seg(time, 10.0, 10.9));
+    input.position.y = lerp(0.4, 3.0, up);
+    input.scale.setScalar(lerp(1, 0.5, up));
+
+    var flow = seg(time, 10.6, 11.1) * (1 - seg(time, 12.6, 13.0));
+    flowMat.opacity = flow * 0.55;
+    pulse.position.copy(flowCurve.getPoint(((time - 10.6) / 0.7) % 1 > 0 ? ((time - 10.6) / 0.7) % 1 : 0));
+    pulseMat.opacity = flow;
+
+    // bars: real distribution first, then a new one for each following token
+    var cur = [], hi = [], hl = ease(seg(time, 11.6, 12.1));
+    for (j = 0; j < 5; j++) {
+      cur[j] = DIST[0][j] * easeOut(seg(time, 10.6 + j * 0.1, 11.4 + j * 0.1));
+      hi[j] = j === WIN[0] ? hl : 0;
+    }
+    for (n = 1; n <= 5; n++) {
+      var e = ease(seg(time, STEP0 + (n - 1) * STEP - 0.22, STEP0 + (n - 1) * STEP));
+      if (e <= 0) break;
+      for (j = 0; j < 5; j++) {
+        cur[j] = lerp(cur[j], DIST[n][j], e);
+        hi[j] = lerp(hi[j], j === WIN[n] ? 1 : 0, e);
+      }
+    }
+    var textOn = 1 - seg(time, 12.8, 13.1);
+    for (j = 0; j < 5; j++) {
+      var hgt = Math.max(0.001, cur[j] * BAR_MAX);
+      bars[j].scale.y = hgt; bars[j].position.y = BAR_Y + hgt / 2;
+      bars[j].visible = time > 10.6;
+      bars[j].material.color.copy(C.muted).lerp(C.accent, hi[j]);
+      bars[j].material.opacity = lerp(1, lerp(0.35, 1, hi[j]), hl);
+      var shown = seg(time, 10.5 + j * 0.1, 10.9 + j * 0.1) * textOn;
+      candLabels[j].mat.opacity = shown;
+      pctLabels[j].mat.opacity = seg(time, 11.0 + j * 0.1, 11.4 + j * 0.1) * textOn;
+      pctLabels[j].mesh.position.y = BAR_Y + hgt + 0.32;
+    }
+
+    // 5. the answer: the first token flies down from its bar, the rest follow
+    var fly = ease(seg(time, 12.3, 13.0));
+    outTiles[0].mesh.position.set(
+      lerp(barX[0] / OUT_S, xOut[0], fly), lerp((BAR_Y - 0.4 - OUT_Y) / OUT_S, 0, fly), 0.5);
+    outTiles[0].mat.opacity = seg(time, 12.2, 12.45);
+    for (n = 1; n < OUT.length; n++) {
+      var at = STEP0 + (n - 1) * STEP, pop = seg(time, at, at + 0.25);
+      outTiles[n].mesh.position.set(xOut[n], lerp(0.5, 0, easeOut(pop)), 0.5);
+      outTiles[n].mat.opacity = pop;
+      setK(outTiles[n], Math.max(0.0001, easeBack(pop)));
+    }
+  }
+
+  /* ---------- loop ---------- */
+  var prev = performance.now(), n;
+  function frame(now) {
+    var dt = Math.min(0.1, (now - prev) / 1000); prev = now;
+    if (playing) {
+      t += dt;
+      if (t >= DUR) { t = DUR; playing = false; }
+    }
+    update(t);
+    renderer.render(scene, camera);
+    syncUI(false);
+    requestAnimationFrame(frame);
+  }
+  syncUI(true);
+  window.__seek = function (x) { t = x; playing = false; };
+  requestAnimationFrame(frame);
+})();
+</script>
+</body></html>
